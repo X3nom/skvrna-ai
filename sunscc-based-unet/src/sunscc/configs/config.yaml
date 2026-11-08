@@ -1,0 +1,47 @@
+# SunSCC segmentation reimplementation - Hydra config
+# Paper: Sayez et al. 2023 (doi:10.1029/2023JA031548)
+#
+# Defaults chosen for the paper-faithful setup but scaled for a 2 GB GPU:
+# batch_size 1 + accumulate_grad_batches 16 ~ paper's batch of 16.
+
+defaults:
+  - model: paper_full
+  - trainer: mx550
+  - _self_
+
+data:
+  # Resolution MUST stay 512 (paper-faithful); do not downscale patches.
+  patch_size: 512
+  grid: 4                    # 4x4 patches per 2048 image
+  # Paper batch size is 16; for the 2 GB MX550 use 1-2 + accumulate_grad_batches.
+  batch_size: 16
+  num_workers: 4
+  # Paths resolved from env var SUNSCC_DATA_ROOT (no hardcoded cluster paths!)
+  data_root: ${oc.env:SUNSCC_DATA_ROOT}
+  image_dir: ${data.data_root}/images        # *.FTS white-light images
+  mask_dir: ${data.data_root}/masks          # T<thr>_fgbg/<stem>.png folders
+  thresholds: [325, 375, 425]                # paper's 3 stochastic pseudo-labels
+  # Validation via pseudo-manual masks: directory of hand-corrected masks.
+  validation_mask_dir: ${data.data_root}/validation_masks
+  validation_max_images: null                # cap val size (null = all)
+  cache_images: false                        # preload all patches in RAM (needs ~20GB, off by default)
+
+train:
+  epochs: 40                # paper: 40
+  seed: 42
+  aug:
+    p: 0.5                  # albumentations flip/rotate probability
+
+paths:
+  log_dir: ${oc.env:SUNSCC_OUTPUT_ROOT,${data.data_root}/runs}/logs
+  ckpt_dir: ${oc.env:SUNSCC_OUTPUT_ROOT,${data.data_root}/runs}/checkpoints
+
+logger:
+  tensorboard:
+    name: tensorboard
+    save_dir: ${paths.log_dir}
+
+hydra:
+  output_subdir: hydra_out
+  run:
+    dir: ${paths.log_dir}/${now:%Y-%m-%d_%H-%M-%S}

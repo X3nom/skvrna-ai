@@ -1,0 +1,4 @@
+[console_scripts]
+sunscc-generate-masks = sunscc.cli.generate_masks:main
+sunscc-predict = sunscc.cli.predict:main
+sunscc-train = sunscc.cli.train:main

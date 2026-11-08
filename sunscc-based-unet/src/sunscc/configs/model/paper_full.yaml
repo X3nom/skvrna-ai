@@ -1,0 +1,7 @@
+# Paper architecture: 5 levels 32/64/128/256/512 filters, single binary output.
+# width_scale stays 1.0 (paper-faithful); shrink ONLY if OOM even at batch 1.
+_target_: sunscc.lightning_module.SegmentationModule
+width_scale: 1.0
+learning_rate: 1e-4      # paper: AdamW 1e-4
+weight_decay: 1e-5
+dice_eps: 1.0

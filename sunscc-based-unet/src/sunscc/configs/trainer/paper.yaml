@@ -1,0 +1,15 @@
+# Paper-faithful training config (needs >=8 GB GPU, e.g. RTX 3060+).
+# Note: data.batch_size governs the loader (16 here).
+_target_: lightning.pytorch.trainer.Trainer
+max_epochs: ${train.epochs}
+accelerator: gpu
+devices: 1
+precision: 16-mixed
+accumulate_grad_batches: 1
+default_root_dir: ${paths.log_dir}
+log_every_n_steps: 20
+num_sanity_val_steps: 2
+benchmark: true
+gradient_clip_val: null
+enable_checkpointing: true
+check_val_every_n_epoch: 1

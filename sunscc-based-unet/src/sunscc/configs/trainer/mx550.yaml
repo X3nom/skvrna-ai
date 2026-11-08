@@ -1,0 +1,15 @@
+# MX550 (2 GB VRAM): batch 1 (in data.batch_size) + grad accumulation 16 ~= paper 16.
+# Mixed precision halves activation memory; falls back to fp32 if unsupported.
+_target_: lightning.pytorch.trainer.Trainer
+max_epochs: ${train.epochs}
+accelerator: gpu
+devices: 1
+precision: 16-mixed
+accumulate_grad_batches: 16
+default_root_dir: ${paths.log_dir}
+log_every_n_steps: 20
+num_sanity_val_steps: 2
+benchmark: true
+gradient_clip_val: null
+enable_checkpointing: true
+check_val_every_n_epoch: 2

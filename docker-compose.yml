@@ -1,0 +1,18 @@
+
+services:
+  jupyter:
+      build: .
+      # deploy:
+      #   resources:
+      #       reservations:
+      #           devices:
+      #               - driver: nvidia
+      #                 count: all
+      #                 capabilities:
+      #                     - gpu
+      ports:
+          - 127.0.0.1:8888:8888
+      environment:
+          - JUPYTER_TOKEN=purrmeowmeow
+      volumes:
+          - './:/work'
