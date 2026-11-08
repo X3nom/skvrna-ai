@@ -39,7 +39,7 @@ def collect_fits(inputs: list[Path]) -> list[Path]:
     files: list[Path] = []
     for item in inputs:
         if item.is_dir():
-            files += sorted(item.glob("*.FTS")) + sorted(item.glob("*.fts"))
+            files += sorted(item.glob("**/*.FTS")) + sorted(item.glob("**/*.fts"))
         elif item.is_file():
             files.append(item)
         else:

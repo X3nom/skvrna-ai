@@ -80,7 +80,7 @@ def build_datasets(cfg: DictConfig) -> tuple[PseudoLabelPatchDataset, PseudoLabe
     image_dir = Path(cfg.data.image_dir)
     if not image_dir.is_dir():
         raise FileNotFoundError(f"image_dir not found: {image_dir} (set SUNSCC_DATA_ROOT / data.image_dir)")
-    images = sorted([*image_dir.glob("*.FTS"), *image_dir.glob("*.fts")])
+    images = sorted([*image_dir.glob("**/*.FTS"), *image_dir.glob("**/*.fts")])
 
     mask_dirs: dict[float, str | Path] = {
         float(t): Path(cfg.data.mask_dir) / f"T{int(t)}_fgbg" for t in cfg.data.thresholds
@@ -133,7 +133,7 @@ def main(cfg: DictConfig) -> None:
     if len(train_ds) == 0:
         raise RuntimeError(
             f"No training patches. Checked mask dirs {list(Path(cfg.data.mask_dir).glob('T*'))} "
-            f"for {len(sorted(Path(cfg.data.image_dir).glob('*.FTS')))} images"
+            f"for {len(sorted(Path(cfg.data.image_dir).glob('**/*.FTS')))} images"
         )
     log.info("train patches: %d (from %d images)", len(train_ds), len({s[0].stem for s in train_ds.samples}))
 
