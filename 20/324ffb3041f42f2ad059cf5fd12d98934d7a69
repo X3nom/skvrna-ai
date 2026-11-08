@@ -1,0 +1,16 @@
+sunscc-based-unet/src/sunscc/cli/generate_masks.py
+  h_098f3d4a2eb8ff 42
+sunscc-based-unet/src/sunscc/cli/train.py
+  h_098f3d4a2eb8ff 83,136
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "20324ffb3041f42f2ad059cf5fd12d98934d7a69",
+  "prompts": {},
+  "humans": {
+    "h_098f3d4a2eb8ff": {
+      "author": "x3nom <jakub.p12345678910@gmail.com>"
+    }
+  }
+}
