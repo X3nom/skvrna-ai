@@ -1,0 +1,19 @@
+sunscc-based-unet/src/sunscc/lightning_module.py
+  s_a5fb709a191bd0::t_ecac275ee9e330 1-115
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6c25c2aeba52fe5d3ed785cee3e82a6acabf3e17",
+  "prompts": {},
+  "sessions": {
+    "s_a5fb709a191bd0": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e63616aa3ffeHwtzYM5Ci89dEw",
+        "model": "nvidia/nemotron-3-ultra-550b-a55b:free"
+      },
+      "human_author": "x3nom <jakub.p12345678910@gmail.com>"
+    }
+  }
+}
