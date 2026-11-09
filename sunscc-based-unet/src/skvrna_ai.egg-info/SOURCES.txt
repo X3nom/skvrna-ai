@@ -10,9 +10,11 @@ sunscc-based-unet/src/sunscc/__init__.py
 sunscc-based-unet/src/sunscc/dataset.py
 sunscc-based-unet/src/sunscc/lightning_module.py
 sunscc-based-unet/src/sunscc/metrics.py
+sunscc-based-unet/src/sunscc/preprocess.py
 sunscc-based-unet/src/sunscc/pseudolabels.py
 sunscc-based-unet/src/sunscc/unet.py
 sunscc-based-unet/src/sunscc/cli/__init__.py
 sunscc-based-unet/src/sunscc/cli/generate_masks.py
 sunscc-based-unet/src/sunscc/cli/predict.py
+sunscc-based-unet/src/sunscc/cli/preprocess.py
 sunscc-based-unet/src/sunscc/cli/train.py

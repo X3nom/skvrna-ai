@@ -3,7 +3,7 @@
 Top-level entry point is :func:`generate_pseudolabel`: a FITS filepath in, a mask
 filepath (or array) out. Steps:
 
-1. Load raw white-light image.
+1. Load raw white-light image (FITS or PNG).
 2. Limb darkening correction: fit a polynomial to the mean radial intensity profile
    (polar projection) with sigma-clipping so dark spots/sunburns don't bias the fit,
    then divide the raw image by the fitted profile (profile normalized to 1 at center,
@@ -21,6 +21,7 @@ onto whatever scale results) must be empirically calibrated against paper F1 val
 
 from __future__ import annotations
 
+import csv
 import logging
 from pathlib import Path
 
@@ -40,41 +41,105 @@ DEFAULT_FOOTPRINT_RADIUS = 25  # SE must exceed typical spot radius to fill inte
 DEFAULT_MIN_DETECTION_AREA = 8
 DEFAULT_LIMB_MARGIN = 0.995
 
+# --------------------------------------------------------------------------- #
+# Meta CSV handling
+# --------------------------------------------------------------------------- #
+_META_CACHE: dict[str, dict] = {}
+
+
+def load_meta_csv(meta_csv: Path | str) -> dict[str, dict]:
+    """Load sidecar meta CSV into dict keyed by stem."""
+    meta_csv = Path(meta_csv)
+    if str(meta_csv) in _META_CACHE:
+        return _META_CACHE[str(meta_csv)]
+    meta = {}
+    with meta_csv.open(newline="") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            stem = row["stem"]
+            # Convert numeric fields
+            for key in ("orig_w", "orig_h", "solar_r", "center_x", "center_y",
+                        "stretch_hi", "stretch_lo", "native_scale", "p_low", "p_high"):
+                row[key] = float(row[key]) if row[key] else -1.0
+            meta[stem] = row
+    _META_CACHE[str(meta_csv)] = meta
+    return meta
+
+
+def get_meta(stem: str, meta_csv: Path | str | None) -> dict | None:
+    """Get metadata row for stem from meta CSV, or None if not found/unavailable."""
+    if meta_csv is None:
+        return None
+    meta = load_meta_csv(meta_csv)
+    return meta.get(stem)
+
 
 # --------------------------------------------------------------------------- #
-# FITS loading
+# Image loading (FITS or PNG)
 # --------------------------------------------------------------------------- #
 def load_wl_image(path: Path | str) -> np.ndarray:
-    """Load the first image HDU of a USET white-light FITS file as float32."""
+    """Load white-light image (FITS or PNG) as float32."""
     path = Path(path)
+    if path.suffix.lower() in (".png", ".PNG"):
+        import cv2
+        img = cv2.imread(str(path), cv2.IMREAD_UNCHANGED | cv2.IMREAD_ANYDEPTH)
+        if img is None:
+            raise ValueError(f"Failed to read PNG: {path}")
+        return np.asarray(img, dtype=np.float32)
+    # FITS
     with fits.open(path) as hdul:  # memmap=False implicitly: BZERO/BSCALE keywords present
         data = hdul[0].data
         header = hdul[0].header
     if data.ndim != 2:
         raise ValueError(f"{path}: expected 2D image, got shape {data.shape}")
     if header.get("NAXIS1", data.shape[1]) != 2048:
-        log.warning("%s: image is %sx%s (pre-2006 USET?), not 2048x2048",
+        log.warning("%s: image is %sx%s (pre-June-2008 USET camera; will need upsampling), not 2048x2048",
                     path.name, data.shape[1], data.shape[0])
     return np.asarray(data, dtype=np.float32)
 
 
-def read_solar_disk_geometry(path: Path | str, image: np.ndarray | None = None) -> tuple[float, float]:
-    """Return (center_y, center_x, radius) ... actually (row, col) offsets and radius.
+def read_solar_disk_geometry(
+    path: Path | str,
+    image: np.ndarray | None = None,
+    meta_csv: Path | str | None = None,
+) -> tuple[float, float, float]:
+    """Return (center_y, center_x, radius).
 
     Reads SOLAR_R from the FITS header (present in USET L1c); falls back to a
     half-maximum threshold estimate when missing. Centers are taken as image center
     (repo convention: SOLAR_R and mass center coincide for L1c).
+
+    For PNG inputs, geometry is read from the sidecar meta CSV if provided.
     """
-    with fits.open(Path(path)) as hdul:
+    path = Path(path)
+    if path.suffix.lower() in (".png", ".PNG"):
+        if meta_csv is not None:
+            meta = get_meta(path.stem, meta_csv)
+            if meta is not None:
+                return float(meta["center_y"]), float(meta["center_x"]), float(meta["solar_r"])
+        # Fallback: estimate from image
+        image = image if image is not None else load_wl_image(path)
+        return _estimate_geometry_from_image(image)
+
+    # FITS path
+    with fits.open(path) as hdul:
         header = hdul[0].header
     radius = header.get("SOLAR_R")
     image = image if image is not None else load_wl_image(path)
     ny, nx = image.shape
     center_y, center_x = (ny - 1) / 2.0, (nx - 1) / 2.0
     if radius is None:
-        log.warning("SOLAR_R missing in %s header; estimating from half-max contour", Path(path).name)
-        radius = estimate_solar_radius(image, center_y, center_x)
+        log.warning("SOLAR_R missing in %s header; estimating from half-max contour", path.name)
+        radius = _estimate_geometry_from_image(image)[2]
     return float(center_y), float(center_x), float(radius)
+
+
+def _estimate_geometry_from_image(image: np.ndarray) -> tuple[float, float, float]:
+    """Estimate (center_y, center_x, radius) from image alone."""
+    ny, nx = image.shape
+    center_y, center_x = (ny - 1) / 2.0, (nx - 1) / 2.0
+    radius = estimate_solar_radius(image, center_y, center_x)
+    return center_y, center_x, radius
 
 
 def estimate_solar_radius(image: np.ndarray, center_y: float, center_x: float) -> float:
@@ -235,11 +300,14 @@ def generate_pseudolabel(
     min_area: int = DEFAULT_MIN_DETECTION_AREA,
     overwrite: bool = False,
     return_array: bool = False,
+    meta_csv: Path | str | None = None,
 ) -> np.ndarray | None:
-    """Generate a binary pseudo-label mask for one white-light FITS image.
+    """Generate a binary pseudo-label mask for one white-light FITS or PNG image.
 
     filepath in -> filepath out (uint8 PNG, 0/255), or return the bool array when
     ``return_array`` is True and no output_path is given.
+
+    For PNG inputs, provide ``meta_csv`` to read geometry from the sidecar CSV.
     """
     from cv2 import imwrite  # local import so importing this module stays cheap
 
@@ -252,7 +320,7 @@ def generate_pseudolabel(
             return None
 
     image = load_wl_image(input_path)
-    cy, cx, radius = read_solar_disk_geometry(input_path, image)
+    cy, cx, radius = read_solar_disk_geometry(input_path, image, meta_csv)
     disk_m = solar_disk_mask(image.shape, cy, cx, radius)
 
     corrected = limb_darkening_correct(image, cy, cx, radius)

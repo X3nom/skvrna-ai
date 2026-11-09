@@ -4,6 +4,7 @@ Top-level function generate_pseudolabel(input_path, output_path, threshold) live
 sunscc.pseudolabels; this CLI wraps it for directory sweeps:
 
     sunscc-generate-masks IN [IN ...] --output-dir DIR [--thresholds 325 375 425]
+    sunscc-generate-masks /data/images_png --meta-csv /data/meta/images.csv -o /data/masks
 """
 from __future__ import annotations
 
@@ -20,10 +21,12 @@ log = logging.getLogger("sunscc.generate_masks")
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("inputs", nargs="+", type=Path, help="FITS file(s) or directory of FITS")
+    p.add_argument("inputs", nargs="+", type=Path, help="FITS/PNG file(s) or directory of FITS/PNG")
     p.add_argument("-o", "--output-dir", type=Path, required=True,
                    help="where to write '<stem>.png' masks (one subfolder per threshold "
                         "named T<int>_fgbg, mirroring the original repo layout)")
+    p.add_argument("--meta-csv", type=Path, default=None,
+                   help="sidecar CSV for PNG inputs (required if inputs are PNG)")
     p.add_argument("-t", "--thresholds", type=str, nargs="*", default=None,
                    help="threshold values (default: paper 325 375 425; "
                         "'--thresholds all' sweeps 250..500 step 25)")
@@ -35,11 +38,12 @@ def build_parser() -> argparse.ArgumentParser:
     return p
 
 
-def collect_fits(inputs: list[Path]) -> list[Path]:
+def collect_inputs(inputs: list[Path]) -> list[Path]:
     files: list[Path] = []
     for item in inputs:
         if item.is_dir():
             files += sorted(item.glob("**/*.FTS")) + sorted(item.glob("**/*.fts"))
+            files += sorted(item.glob("**/*.PNG")) + sorted(item.glob("**/*.png"))
         elif item.is_file():
             files.append(item)
         else:
@@ -60,11 +64,11 @@ def main(argv: list[str] | None = None) -> int:
     else:
         thresholds = [float(t) for t in thresholds]
 
-    files = collect_fits([*args.inputs])
+    files = collect_inputs([*args.inputs])
     if not files:
-        log.error("no FITS files found")
+        log.error("no input files found")
         return 1
-    log.info("%d FITS files -> %s  (thresholds: %s)", len(files), args.output_dir, thresholds)
+    log.info("%d files -> %s  (thresholds: %s)", len(files), args.output_dir, thresholds)
 
     out_dirs = {t: args.output_dir / f"T{int(t)}_fgbg" for t in thresholds}
     kwargs = {}
@@ -72,6 +76,8 @@ def main(argv: list[str] | None = None) -> int:
         kwargs["footprint_radius"] = int(args.footprint)
     if args.min_area is not None:
         kwargs["min_area"] = int(args.min_area)
+    if args.meta_csv is not None:
+        kwargs["meta_csv"] = args.meta_csv
 
     tasks = []
     for path in files:

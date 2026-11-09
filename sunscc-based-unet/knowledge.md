@@ -172,6 +172,39 @@ Data root via env var `SUNSCC_DATA_ROOT` / hydra config (never hardcode).
   RTX 3060 server. Driver update may be needed whenever GPU training resumes.
 - docker-compose GPUs commented out (pre-existing, left untouched).
 
+## 10b. FITS -> PNG preprocessing pipeline (implemented)
+
+- `sunscc-preprocess <input_dir> -o <png_dir> --meta-csv <csv> [-j N] [--overwrite]`
+  converts `**/*.FTS` to 16-bit PNGs with a **pure-gain clamp stretch**:
+  `out = clip(img / p_hi * 65535, 0, 65535)` (no offset: with pure gain the raw
+  threshold 250-500 spectrum maps via an exact gain factor, so pseudo-label
+  thresholds applied to the PNG (`t/gain*65535`, uint16-rounded) match the raw
+  experiment up to 1-LSB quantization).
+- `p_hi` = in-disk p99.7 over `r <= 0.95 * R` (masked out limb saturation +
+  out-of-disk ~0 background). Low end: p0.5 ~ limb rim brightness ~= 1299 > umbra
+  cores 790-940, so **offset stretch would change pseudo-label masks dramatically**;
+  pure gain is the only safe option.
+- PNG ~5MB each ~= same as FITS; ~60k images ~= ~250GB total.
+- Decision (user): pseudo-label masks are generated from **raw FITS**, not from
+  the stretched PNGs. With pure gain the resulting masks are near-identical;
+  offset stretch would NOT be (see above), and generating from raw avoids any
+  quantization question entirely. `sunscc-generate-masks` also accepts PNG
+  inputs via the `--meta-csv` flag (sidecar provides geometry + stretch_hi).
+- Sidecar CSV columns: stem, orig_w, orig_h (after upsample), solar_r, center_x,
+  center_y, stretch_hi (=p_hi), stretch_lo (=p_low), native_scale, p_low, p_high,
+  qc(ok|rotten), geometry_source(header|fallback), notes.
+- Pre-June-2008 camera: 1024x1024 -> native-resolution percentile, THEN NN
+  upscale 2x to 2048 (cv2.INTER_NEAREST) so all PNGs are 2048x2048; sidecar
+  records original size (native_scale). Geometry scales together.
+- 1024 boundary verified empirically: 2008-05-31 FITS is 1024^2, 2008-07-01 is 2048^2
+  (camera change June 2008, paper line 125).
+- Workers only return rows; the parent process is the sole CSV writer (handle is
+  not picklable/shared). Rows flushed per-image; resume skips stems already qc=ok.
+- configs: `data.image_dir` default now `${data_root}/images_png`,
+  `data.meta_csv` = `${data_root}/meta/images.csv` (predict/masks use it:
+  `--meta-csv` flag). dataset.py `load_image_patch` auto-dispatches PNG (fixed
+  /65535 normalize; uint16) vs FITS (ImageScaleCache 99.9-pct).
+
 ## 11. Deferred (explicitly OUT of scope now)
 
 - MeanShift grouping (repo's `MeanShift.py`, `clustering_utilities.py` are complete

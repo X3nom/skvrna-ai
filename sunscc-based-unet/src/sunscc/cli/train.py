@@ -80,7 +80,10 @@ def build_datasets(cfg: DictConfig) -> tuple[PseudoLabelPatchDataset, PseudoLabe
     image_dir = Path(cfg.data.image_dir)
     if not image_dir.is_dir():
         raise FileNotFoundError(f"image_dir not found: {image_dir} (set SUNSCC_DATA_ROOT / data.image_dir)")
-    images = sorted([*image_dir.glob("**/*.FTS"), *image_dir.glob("**/*.fts")])
+    images = sorted(
+        [*image_dir.glob("**/*.FTS"), *image_dir.glob("**/*.fts"),
+         *image_dir.glob("**/*.PNG"), *image_dir.glob("**/*.png")]
+    )
 
     mask_dirs: dict[float, str | Path] = {
         float(t): Path(cfg.data.mask_dir) / f"T{int(t)}_fgbg" for t in cfg.data.thresholds

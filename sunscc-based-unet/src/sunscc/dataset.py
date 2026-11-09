@@ -42,11 +42,23 @@ def patch_grid_offsets() -> list[tuple[int, int]]:
     return [(r * PATCH_SIZE, c * PATCH_SIZE) for r in range(GRID) for c in range(GRID)]
 
 
-def load_fits_patch(path: Path | str, row: int, col: int) -> np.ndarray:
-    """Load a 512x512 patch (float32, raw counts) from a full-disk FITS."""
-    with fits.open(Path(path)) as hdul:  # memmap=False: FITS carries BZERO/BSCALE
+def load_image_patch(path: Path | str, row: int, col: int) -> np.ndarray:
+    """Load a 512x512 patch (float32, normalized 0..1) from FITS or PNG.
+
+    PNG path: already gain-stretched to 0..65535, normalize by fixed /65535.0.
+    FITS path: raw counts, normalized per-image by 99.9th percentile (ImageScaleCache).
+    """
+    path = Path(path)
+    if path.suffix.lower() in (".png", ".PNG"):
+        patch = cv2.imread(str(path), cv2.IMREAD_UNCHANGED | cv2.IMREAD_ANYDEPTH)
+        if patch is None:
+            raise ValueError(f"Failed to read PNG: {path}")
+        patch = np.asarray(patch[row : row + PATCH_SIZE, col : col + PATCH_SIZE], dtype=np.float32)
+        return patch / 65535.0
+    # FITS path
+    with fits.open(path) as hdul:
         patch = hdul[0].data[row : row + PATCH_SIZE, col : col + PATCH_SIZE]
-    return np.asarray(patch, dtype=np.float32)
+    return np.asarray(patch, dtype=np.float32) / ImageScaleCache()(path)
 
 
 class ImageScaleCache:
@@ -129,7 +141,7 @@ class PseudoLabelPatchDataset(Dataset):
     def __getitem__(self, index: int) -> tuple[torch.Tensor, torch.Tensor, float]:
         img_path, (row, col), masks = self.samples[index]
 
-        image = load_fits_patch(img_path, row, col)
+        image = load_image_patch(img_path, row, col)
         threshold = float(random.choice(sorted(masks)))
         raw = cv2.imread(str(masks[threshold]), cv2.IMREAD_GRAYSCALE).astype(np.float32)
         mask = (raw > 127.0)[row : row + PATCH_SIZE, col : col + PATCH_SIZE].astype(np.float32)
@@ -138,7 +150,6 @@ class PseudoLabelPatchDataset(Dataset):
             out = self.transform(image=image, mask=mask)
             image, mask = out["image"], out["mask"]
 
-        image_t = torch.as_tensor(np.ascontiguousarray(image), dtype=torch.float32)
-        image_t = image_t.unsqueeze(0) / self.scale_cache(img_path)
+        image_t = torch.as_tensor(np.ascontiguousarray(image), dtype=torch.float32).unsqueeze(0)
         mask_t = torch.as_tensor(np.ascontiguousarray(mask), dtype=torch.float32).unsqueeze(0)
         return image_t, mask_t, threshold

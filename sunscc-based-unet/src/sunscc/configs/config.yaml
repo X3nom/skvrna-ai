@@ -3,6 +3,7 @@
 #
 # Defaults chosen for the paper-faithful setup but scaled for a 2 GB GPU:
 # batch_size 1 + accumulate_grad_batches 16 ~ paper's batch of 16.
+# Use PNG inputs by default (preprocessed with sunscc-preprocess); FITS fallback works too.
 
 defaults:
   - model: paper_full
@@ -18,13 +19,15 @@ data:
   num_workers: 4
   # Paths resolved from env var SUNSCC_DATA_ROOT (no hardcoded cluster paths!)
   data_root: ${oc.env:SUNSCC_DATA_ROOT}
-  image_dir: ${data.data_root}/images        # *.FTS white-light images
-  mask_dir: ${data.data_root}/masks          # T<thr>_fgbg/<stem>.png folders
-  thresholds: [325, 375, 425]                # paper's 3 stochastic pseudo-labels
+  # Use preprocessed PNGs by default; FITS in images/ also works.
+  image_dir: ${data.data_root}/images_png        # *.png gain-stretched (preferred)
+  mask_dir: ${data.data_root}/masks              # T<thr>_fgbg/<stem>.png folders
+  meta_csv: ${data.data_root}/meta/images.csv    # sidecar: stretch_hi, solar_r, etc.
+  thresholds: [325, 375, 425]                    # paper's 3 stochastic pseudo-labels
   # Validation via pseudo-manual masks: directory of hand-corrected masks.
   validation_mask_dir: ${data.data_root}/validation_masks
-  validation_max_images: null                # cap val size (null = all)
-  cache_images: false                        # preload all patches in RAM (needs ~20GB, off by default)
+  validation_max_images: null                    # cap val size (null = all)
+  cache_images: false                            # preload all patches in RAM (needs ~20GB, off by default)
 
 train:
   epochs: 40                # paper: 40
