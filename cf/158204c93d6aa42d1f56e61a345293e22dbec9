@@ -1,0 +1,23 @@
+sunscc-based-unet/src/skvrna_ai.egg-info/SOURCES.txt
+  s_a5fb709a191bd0::t_106cfeb91a4843 13,19
+sunscc-based-unet/src/skvrna_ai.egg-info/entry_points.txt
+  s_a5fb709a191bd0::t_7be8c12dcbc43e 4
+sunscc-based-unet/src/sunscc/cli/predict.py
+  s_a5fb709a191bd0::t_e7afbbe7824be7 8,19-41,46,49,51,59,63-64,67,82-83,89
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cf158204c93d6aa42d1f56e61a345293e22dbec9",
+  "prompts": {},
+  "sessions": {
+    "s_a5fb709a191bd0": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e63616aa3ffeHwtzYM5Ci89dEw",
+        "model": "nvidia/nemotron-3-ultra-550b-a55b:free"
+      },
+      "human_author": "x3nom <jakub.p12345678910@gmail.com>"
+    }
+  }
+}
