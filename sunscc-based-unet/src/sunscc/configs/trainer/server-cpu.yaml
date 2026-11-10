@@ -1,0 +1,12 @@
+# 64-core server, CPU-only: batch 16 fits RAM trivially, so no grad accumulation.
+_target_: lightning.pytorch.trainer.Trainer
+max_epochs: ${train.epochs}
+accelerator: cpu
+accumulate_grad_batches: 1
+default_root_dir: ${paths.log_dir}
+log_every_n_steps: 50
+num_sanity_val_steps: 2
+benchmark: false            # benchmark=true is a CUDA-only optimization, useless on CPU
+gradient_clip_val: null
+enable_checkpointing: true
+check_val_every_n_epoch: 2

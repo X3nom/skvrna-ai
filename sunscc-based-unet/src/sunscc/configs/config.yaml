@@ -1,13 +1,15 @@
 # SunSCC segmentation reimplementation - Hydra config
 # Paper: Sayez et al. 2023 (doi:10.1029/2023JA031548)
 #
-# Defaults chosen for the paper-faithful setup but scaled for a 2 GB GPU:
-# batch_size 1 + accumulate_grad_batches 16 ~ paper's batch of 16.
+# Default trainer is `server-cpu` (64-core CPU-only server): batch 16 fits RAM
+# trivially, no grad accumulation needed. Laptop GPU: `trainer=mx550`
+# (batch 1 + accumulate_grad_batches 16 ~ paper's batch of 16).
+# RTX 3060+: `trainer=paper`.
 # Use PNG inputs by default (preprocessed with sunscc-preprocess); FITS fallback works too.
 
 defaults:
   - model: paper_full
-  - trainer: mx550
+  - trainer: server-cpu
   - _self_
 
 data:
@@ -16,7 +18,7 @@ data:
   grid: 4                    # 4x4 patches per 2048 image
   # Paper batch size is 16; for the 2 GB MX550 use 1-2 + accumulate_grad_batches.
   batch_size: 16
-  num_workers: 4
+  num_workers: 8             # loader processes; keep << torch_threads to avoid oversubscription
   # Paths resolved from env var SUNSCC_DATA_ROOT (no hardcoded cluster paths!)
   data_root: ${oc.env:SUNSCC_DATA_ROOT}
   # Use preprocessed PNGs by default; FITS in images/ also works.
@@ -32,8 +34,9 @@ data:
 train:
   epochs: 40                # paper: 40
   seed: 42
+  torch_threads: 56         # torch intra-op threads (of 64 cores; rest is OS + loader workers)
   aug:
-    p: 0.5                  # albumentations flip/rotate probability
+    p: 0.5                  # albumentations flip/rotate probability=
 
 paths:
   log_dir: ${oc.env:SUNSCC_OUTPUT_ROOT,${data.data_root}/runs}/logs

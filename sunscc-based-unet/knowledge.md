@@ -139,9 +139,11 @@ skvrna-ai/                      (uv project root; Dockerfile/compose pre-existin
 │   │   ├── metrics.py          (detection F1 per size bin, fusion counts)
 │   │   └── cli/
 │   │       ├── generate_masks.py  (argparse: single FITS in → mask PNGs out)
-│   │       ├── train.py           (hydra entrypoint)
+│   │       ├── preprocess.py      (sunscc-preprocess: FTS -> PNG CLI)
+│   │       ├── train.py           (hydra entrypoint; apply_thread_caps: torch_threads)
 │   │       └── predict.py         (2048 → 4x4 patches → reassemble)
-│   └── configs/                (hydra yaml: model, data, trainer per VRAM)
+│   └── configs/                (hydra yaml: model, data, trainer per device)
+│       └── trainer/: server-cpu (DEFAULT, 64-core CPU server), mx550 (2GB laptop), paper (3060+)
 ├── dataset-stuff/              (user's bulk download scripts)
 └── sayez-SunSCC-4cc85af/       (original repo for reference — read-only)
 ```

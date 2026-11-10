@@ -127,9 +127,26 @@ def build_datasets(cfg: DictConfig) -> tuple[PseudoLabelPatchDataset, PseudoLabe
 CONFIG_DIR = str(Path(__file__).resolve().parent.parent / "configs")
 
 
+def apply_thread_caps(torch_threads: int) -> None:
+    """Cap intra/inter-op torch threads (CPU server training; 0 = torch default).
+
+    Must run before any tensor math parallelizes; inter-op only settable once.
+    Dataloader workers additionally inherit cv2.setNumThreads(0) from dataset.py
+    so each worker stays single-threaded (no oversubscription of the caps above).
+    """
+    if torch_threads > 0:
+        torch.set_num_threads(torch_threads)
+        log.info("torch intra-op threads: %d", torch.get_num_threads())
+    try:
+        torch.set_num_interop_threads(1)
+    except RuntimeError:
+        pass  # already initialized (e.g. fast_dev_run re-import); keep going
+
+
 @hydra.main(version_base=None, config_path=CONFIG_DIR, config_name="config")
 def main(cfg: DictConfig) -> None:
     log.info("Working directory: %s", os.getcwd())
+    apply_thread_caps(int(cfg.train.get("torch_threads", 0)))
     seed_everything(cfg.train.seed)
 
     train_ds, val_ds = build_datasets(cfg)
@@ -140,13 +157,20 @@ def main(cfg: DictConfig) -> None:
         )
     log.info("train patches: %d (from %d images)", len(train_ds), len({s[0].stem for s in train_ds.samples}))
 
+    n_workers = int(cfg.data.num_workers)
+    loader_kwargs = {
+        "num_workers": n_workers,
+        "pin_memory": True,
+        "persistent_workers": n_workers > 0,  # don't re-fork workers every epoch
+        "prefetch_factor": 2 if n_workers > 0 else None,
+    }
+
     train_loader = DataLoader(
         train_ds,
         batch_size=int(cfg.data.batch_size),
         shuffle=True,
-        num_workers=int(cfg.data.num_workers),
-        pin_memory=True,
         drop_last=True,
+        **loader_kwargs,
     )
     val_loader = None
     if val_ds is not None and len(val_ds) > 0:
@@ -154,8 +178,7 @@ def main(cfg: DictConfig) -> None:
             val_ds,
             batch_size=max(1, int(cfg.data.batch_size) * 2),
             shuffle=False,
-            num_workers=int(cfg.data.num_workers),
-            pin_memory=True,
+            **loader_kwargs,
         )
 
     trainer_from_cfg = instantiate(cfg.trainer, _convert_="all")

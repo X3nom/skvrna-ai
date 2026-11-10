@@ -24,6 +24,10 @@ import torch
 from astropy.io import fits
 from torch.utils.data import Dataset
 
+# Decode/mask ops run inside DataLoader workers; cv2's own thread pool would
+# oversubscribe the CPU on top of torch's thread cap (see train.apply_thread_caps).
+cv2.setNumThreads(0)
+
 log = logging.getLogger(__name__)
 
 PATCH_SIZE = 512
