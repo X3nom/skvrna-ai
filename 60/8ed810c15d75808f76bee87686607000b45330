@@ -1,0 +1,32 @@
+notebooks/mask2polygon-prototype.ipynb
+  h_098f3d4a2eb8ff 1-231
+pyproject.toml
+  h_098f3d4a2eb8ff 29
+sunscc-based-unet/knowledge.md
+  h_098f3d4a2eb8ff 142-143,145-146
+sunscc-based-unet/src/skvrna_ai.egg-info/PKG-INFO
+  h_098f3d4a2eb8ff 24
+sunscc-based-unet/src/skvrna_ai.egg-info/requires.txt
+  h_098f3d4a2eb8ff 18
+sunscc-based-unet/src/sunscc/cli/train.py
+  h_098f3d4a2eb8ff 130-145,149,160-167,173,181
+sunscc-based-unet/src/sunscc/configs/config.yaml
+  h_098f3d4a2eb8ff 4-7,12,21,37,39
+sunscc-based-unet/src/sunscc/configs/trainer/server-cpu.yaml
+  h_098f3d4a2eb8ff 1-12
+sunscc-based-unet/src/sunscc/dataset.py
+  h_098f3d4a2eb8ff 27-30
+uv.lock
+  h_098f3d4a2eb8ff 3910-3983,4074,4106
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "608ed810c15d75808f76bee87686607000b45330",
+  "prompts": {},
+  "humans": {
+    "h_098f3d4a2eb8ff": {
+      "author": "x3nom <jakub.p12345678910@gmail.com>"
+    }
+  }
+}
